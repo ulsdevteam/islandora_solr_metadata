@@ -234,10 +234,8 @@ function islandora_solr_metadata_query_fields($object, &$solr_fields) {
                 $target_object = islandora_object_load(str_replace('info:fedora/', '', $value));
                 if ($target_object) {
                   $use_target = 'islandora/object/' . $target_object->id;
-                  $use_value = $target_object->label;
-                } else {
-                  $use_target = '';
-                  $use_value = 'test';
+                  $use_value = ($link_options['link_text_options']['link_text_text']) ?
+                    _get_SOLR_field_value($target_object->id, $link_options['link_text_options']['link_text_text']) : $target_object->label;
                 }
               }
               if (!isset($link_options['link_target']) || $link_options['link_target'] == 'SOLR') {
@@ -326,6 +324,23 @@ function islandora_solr_metadata_query_fields($object, &$solr_fields) {
     else {
       return FALSE;
     }
+  }
+}
+
+/**
+ * Helper function to get a SOLR value for a given PID.
+ */
+function _get_SOLR_field_value($pid, $field) {
+  $query_processor = new IslandoraSolrQueryProcessor();
+  $query_processor->solrQuery = 'PID:"' . $pid . '"';
+  $query_processor->solrParams['fl'] = $field;
+  $query_processor->executeQuery(FALSE);
+  if ($query_processor->islandoraSolrResult['response']['numFound'] > 0) {
+    $solr_results_doc = $query_processor->islandoraSolrResult['response']['objects']['0']['solr_doc'];
+    return (!is_array($solr_results_doc[$field])) ? $solr_results_doc[$field] : $solr_results_doc[$field][0];
+  }
+  else {
+    return false;
   }
 }
 
