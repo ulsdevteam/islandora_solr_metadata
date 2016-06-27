@@ -512,6 +512,46 @@ function islandora_solr_metadata_config_field_form($form, &$form_state, $config_
     '#description' => t('Should each value for this field be linked to a search to find objects with the value in this field?'),
     '#default_value' => $get_default('hyperlink', FALSE),
   );
+  $link_target_options = array('SOLR' => t('SOLR search'));
+  if (module_exists('pathauto') == TRUE) {
+    $link_target_options['pathauto'] = t('Link to URL alias that matches field\'s original value.');
+  }
+
+  $set['link_options'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Link options'),
+    '#collapsed' => TRUE,
+    '#collapsible' => TRUE,
+    'link_text' => array(
+      '#type' => 'radios',
+      '#title' => 'Link Text',
+      '#options' => array(
+        'default' => t('Default field value'),
+        'otherfield' => t('Display alternate field value')
+      ),
+      '#default_value' => $get_default(array('link_options', 'link_text'), 'default'),
+    ),
+    'link_text_options' => array(
+      '#type' => 'fieldset',
+      '#title' => 'Alternate field value',
+      '#collapsible' => FALSE,
+      'link_text_text' => array(
+        '#type' => 'textfield',
+        '#title' => t('Alternate field value'),
+        '#description' => t('Value from which field to use for link text.'),
+        '#size' => 45,
+        '#autocomplete_path' => 'islandora_solr/autocomplete_luke',
+        '#default_value' => $get_default(array('link_options', 'link_text_options', 'link_text_text'), ''),
+      ),
+    ),
+    'link_target' => array(
+      '#type' => 'radios',
+      '#title' => t('Link target'),
+      '#options' => $link_target_options,
+      '#default_value' => $get_default(array('link_options', 'link_target'), 'SOLR'),
+    ),
+  );
+
   // Add in truncation fields for metadata field.
   $truncation_config = array(
     'default_values' => array(
@@ -624,3 +664,5 @@ function islandora_solr_metadata_add_truncation_to_form(&$form, $field_config) {
     ),
   );
 }
+
+
