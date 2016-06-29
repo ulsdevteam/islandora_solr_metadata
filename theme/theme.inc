@@ -228,8 +228,8 @@ function islandora_solr_metadata_query_fields($object, &$solr_fields) {
             $value = call_user_func($field_config['formatter'], $value);
           }
           if ($field_config['hyperlink'] == 1 && trim($value)) {
+            $use_value = $value;
             if ($link_options = drupal_array_get_nested_value($field_config, array('link_options'))) {
-              $use_value = $value;
               if (isset($link_options['link_text']) && $link_options['link_text'] == 'otherfield') {
                 $target_object = islandora_object_load(str_replace('info:fedora/', '', $value));
                 if ($target_object) {
@@ -238,26 +238,7 @@ function islandora_solr_metadata_query_fields($object, &$solr_fields) {
                     _get_SOLR_field_value($target_object->id, $link_options['link_text_options']['link_text_text']) : $target_object->label;
                 }
               }
-              if (!isset($link_options['link_target']) || $link_options['link_target'] == 'SOLR') {
-                if (variable_get('islandora_solr_metadata_omit_empty_values', FALSE) && !trim($value)) {
-                  // Avoid generating markup (throwing off the "empty" check).
-                  // Will get stripped out later.
-                  return;
-                }
-                $solr_query = format_string('!field:!value', array(
-                  '!field' => $solr_field,
-                  '!value' => islandora_solr_facet_escape($original_value),
-                ));
-                return l($use_value, 'islandora/search', array(
-                  "query" => array(
-                    "type" => "dismax",
-                    "f" => array(
-                      $solr_query,
-                    ),
-                  ),
-                ));
-              }
-              else {
+              if (isset($link_options['link_target']) && $link_options['link_target'] <> 'SOLR') {
                 // Based on the config, see what the target is.
                 return ($use_target) ? l($use_value, $use_target) : $use_value;
               }
@@ -271,7 +252,7 @@ function islandora_solr_metadata_query_fields($object, &$solr_fields) {
               '!field' => $solr_field,
               '!value' => islandora_solr_facet_escape($original_value),
             ));
-            return l($value, 'islandora/search', array(
+            return l($use_value, 'islandora/search', array(
               "query" => array(
                 "type" => "dismax",
                 "f" => array(
