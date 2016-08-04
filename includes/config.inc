@@ -512,10 +512,6 @@ function islandora_solr_metadata_config_field_form($form, &$form_state, $config_
     '#description' => t('Should each value for this field be linked to a search to find objects with the value in this field?'),
     '#default_value' => $get_default('hyperlink', FALSE),
   );
-  $link_target_options = array('SOLR' => t('SOLR search'));
-  if (module_exists('pathauto') == TRUE) {
-    $link_target_options['pathauto'] = t('Link to URL alias that matches field\'s original value.');
-  }
 
   $set['link_options'] = array(
     '#type' => 'fieldset',
@@ -547,11 +543,12 @@ function islandora_solr_metadata_config_field_form($form, &$form_state, $config_
     'link_target' => array(
       '#type' => 'radios',
       '#title' => t('Link target'),
-      '#options' => $link_target_options,
+      '#options' => array('SOLR' => t('SOLR search'),
+                          'pathauto' => t('Link to URL alias that matches field\'s original value.')
+      ),
       '#default_value' => $get_default(array('link_options', 'link_target'), 'SOLR'),
     ),
   );
-
   // Add in truncation fields for metadata field.
   $truncation_config = array(
     'default_values' => array(
@@ -664,5 +661,4 @@ function islandora_solr_metadata_add_truncation_to_form(&$form, $field_config) {
     ),
   );
 }
-
 
