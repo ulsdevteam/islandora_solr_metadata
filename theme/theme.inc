@@ -229,6 +229,48 @@ function islandora_solr_metadata_query_fields($object, &$solr_fields) {
             $value = call_user_func($field_config['formatter'], $value);
           }
           if ($field_config['hyperlink'] == 1 && trim($value)) {
+            if ($link_options = drupal_array_get_nested_value($field_config, array('link_options'))) {
+              $use_value = $value;
+              if (isset($link_options['link_text']) && $link_options['link_text'] == 'otherfield') {
+                $target_object = islandora_object_load(str_replace('info:fedora/', '', $value));
+
+                $site = _get_site_from_config();
+                $target_sites = $target_object->relationships->get(FEDORA_RELS_EXT_URI, 'isMemberOfSite');
+                if (array_search($site, $target_sites) === FALSE) {
+                  unset($solr_fields['RELS_EXT_isMemberOfCollection_uri_ms']);
+                  return ;
+                }
+
+                if ($target_object) {
+                  $use_target = 'islandora/object/' . $target_object->id;
+                  $use_value = ($link_options['link_text_options']['link_text_text']) ?
+                    _get_SOLR_field_value($target_object->id, $link_options['link_text_options']['link_text_text']) : $target_object->label;
+                }
+              }
+              if (!isset($link_options['link_target']) || $link_options['link_target'] == 'SOLR') {
+                if (variable_get('islandora_solr_metadata_omit_empty_values', FALSE) && !trim($value)) {
+                  // Avoid generating markup (throwing off the "empty" check).
+                  // Will get stripped out later.
+                  return;
+                }
+                $solr_query = format_string('!field:!value', array(
+                  '!field' => $solr_field,
+                  '!value' => islandora_solr_facet_escape($original_value),
+                ));
+                return l($use_value, 'islandora/search', array(
+                  "query" => array(
+                    "type" => "dismax",
+                    "f" => array(
+                      $solr_query,
+                    ),
+                  ),
+                ));
+              }
+              else {
+                // Based on the config, see what the target is.
+                return ($use_target) ? l($use_value, $use_target) : $use_value;
+              }
+            }
             if (variable_get('islandora_solr_metadata_omit_empty_values', FALSE) && !trim($value)) {
               // Avoid generating markup (throwing off the "empty" check).
               // Will get stripped out later.
@@ -293,3 +335,41 @@ function islandora_solr_metadata_query_fields($object, &$solr_fields) {
     }
   }
 }
+
+/** 
+ * Helper function to derive the site value from the islandora_solr_base_filter value
+ */
+function _get_site_from_config() {
+  $base_filter = variable_get('islandora_solr_base_filter');
+  // look for the value for RELS_EXT_isMemberOfSite_uri_ms 
+  $filters = explode("\r\n", $base_filter);
+  $found_filter = '';
+  foreach ($filters as $filter) { 
+    if (strstr($filter, 'RELS_EXT_isMemberOfSite_uri_ms') <> '') {
+      $found_filter = $filter;
+    }  
+  }
+  if ($found_filter) { 
+    $site = str_replace(array('"', 'RELS_EXT_isMemberOfSite_uri_ms:'), '', $found_filter);
+    return $site;
+  }
+}
+
+
+/**
+ * Helper function to get a SOLR value for a given PID.
+ */
+function _get_SOLR_field_value($pid, $field) {
+  $query_processor = new IslandoraSolrQueryProcessor();
+  $query_processor->solrQuery = 'PID:"' . $pid . '"';
+  $query_processor->solrParams['fl'] = $field;
+  $query_processor->executeQuery(FALSE);
+  if ($query_processor->islandoraSolrResult['response']['numFound'] > 0) {
+    $solr_results_doc = $query_processor->islandoraSolrResult['response']['objects']['0']['solr_doc'];
+    return (!is_array($solr_results_doc[$field])) ? $solr_results_doc[$field] : $solr_results_doc[$field][0];
+  }
+  else {
+    return false;
+  }
+}
+
