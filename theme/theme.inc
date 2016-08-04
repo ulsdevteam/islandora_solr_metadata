@@ -235,7 +235,7 @@ function islandora_solr_metadata_query_fields($object, &$solr_fields) {
 
                 $site = _get_site_from_config();
                 $target_sites = $target_object->relationships->get(FEDORA_RELS_EXT_URI, 'isMemberOfSite');
-                if (array_search($site, $target_sites) === FALSE) {
+                if ($site <> '' && array_search($site, $target_sites) === FALSE) {
                   unset($solr_fields['RELS_EXT_isMemberOfCollection_uri_ms']);
                   return ;
                 }
@@ -317,7 +317,8 @@ function islandora_solr_metadata_query_fields($object, &$solr_fields) {
 }
 
 /** 
- * Helper function to derive the site value from the islandora_solr_base_filter value
+ * Helper function to derive the site value from the islandora_solr_base_filter value.  Does not handle more than
+ * one site value in the base filter.
  */
 function _get_site_from_config() {
   $base_filter = variable_get('islandora_solr_base_filter');
