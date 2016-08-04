@@ -232,6 +232,14 @@ function islandora_solr_metadata_query_fields($object, &$solr_fields) {
               $use_value = $value;
               if (isset($link_options['link_text']) && $link_options['link_text'] == 'otherfield') {
                 $target_object = islandora_object_load(str_replace('info:fedora/', '', $value));
+
+                $site = _get_site_from_config();
+                $target_sites = $target_object->relationships->get(FEDORA_RELS_EXT_URI, 'isMemberOfSite');
+                if (array_search($site, $target_sites) === FALSE) {
+                  unset($solr_fields['RELS_EXT_isMemberOfCollection_uri_ms']);
+                  return ;
+                }
+
                 if ($target_object) {
                   $use_target = 'islandora/object/' . $target_object->id;
                   $use_value = ($link_options['link_text_options']['link_text_text']) ?
@@ -326,6 +334,26 @@ function islandora_solr_metadata_query_fields($object, &$solr_fields) {
     }
   }
 }
+
+/** 
+ * Helper function to derive the site value from the islandora_solr_base_filter value
+ */
+function _get_site_from_config() {
+  $base_filter = variable_get('islandora_solr_base_filter');
+  // look for the value for RELS_EXT_isMemberOfSite_uri_ms 
+  $filters = explode("\r\n", $base_filter);
+  $found_filter = '';
+  foreach ($filters as $filter) { 
+    if (strstr($filter, 'RELS_EXT_isMemberOfSite_uri_ms') <> '') {
+      $found_filter = $filter;
+    }  
+  }
+  if ($found_filter) { 
+    $site = str_replace(array('"', 'RELS_EXT_isMemberOfSite_uri_ms:'), '', $found_filter);
+    return $site;
+  }
+}
+
 
 /**
  * Helper function to get a SOLR value for a given PID.
