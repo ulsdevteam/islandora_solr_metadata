@@ -202,7 +202,7 @@ function islandora_solr_metadata_query_fields($object, &$solr_fields) {
         // original value and it becomes a copy.
         $get_display_value = function ($original_value) use ($solr_field, &$solr_fields) {
           $value = $original_value;
-          $field_config = $solr_fields[$solr_field] + array(
+          $field_config = (is_array($solr_fields[$solr_field]) ? $solr_fields[$solr_field] : array()) + array(
             'hyperlink' => 0,
             'formatter' => NULL,
           );
@@ -235,7 +235,13 @@ function islandora_solr_metadata_query_fields($object, &$solr_fields) {
                 $target_object = islandora_object_load(str_replace('info:fedora/', '', $value));
 
                 $site = _get_site_from_config();
-                $target_sites = $target_object->relationships->get(FEDORA_RELS_EXT_URI, 'isMemberOfSite');
+                $target_sites_rel = $target_object->relationships->get(NULL, 'isMemberOfSite');
+                $target_sites = array();
+                foreach ($target_sites_rel as $tar) {
+                  if (isset($tar['object']['value'])) {
+                    $target_sites[] = 'info:fedora/' . $tar['object']['value'];
+                  }
+                }
                 if (array_search($site, $target_sites) === FALSE) {
                   unset($solr_fields['RELS_EXT_isMemberOfCollection_uri_ms']);
                   return ;
