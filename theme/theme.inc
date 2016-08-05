@@ -80,7 +80,22 @@ function template_preprocess_islandora_solr_metadata_display(array &$variables) 
  */
 function template_process_islandora_solr_metadata_display(array &$variables) {
   $variables['found'] = islandora_solr_metadata_query_fields($variables['islandora_object'], $variables['solr_fields']);
-
+  // Remove empty values.
+  if ($variables['found']) {
+    foreach ($variables['solr_fields'] as $solr_field=>$solr_field_array) {
+      if (isset($solr_field_array['value']) && is_array($solr_field_array['value'])) {
+        foreach ($solr_field_array['value'] as $k=>$val) {
+          if (trim($val) == '') {
+            unset($variables['solr_fields'][$solr_field]['value'][$k]);
+          }
+        }
+        // If no values left, also remove the field / label.
+        if (count($solr_field_array['value']) < 1) {
+          unset($variables['solr_fields'][$solr_field]);
+        }
+      }
+    }
+  }
   $variables['not_found_message'] = t('Document not present in Solr while generating the metadata display for @id. Try !reloading the page, or contact an administrator if this issue persists.', array(
     '@id' => $variables['islandora_object']->id,
     '!reloading' => '<a href="" onclick="window.location.reload(true)">' . t('reloading') . '</a>',
@@ -199,7 +214,7 @@ function islandora_solr_metadata_query_fields($object, &$solr_fields) {
         // modified to get around a bug in PHP 5.3.3 when used on CentOS 6.6,
         // otherwise the calling function doesn't maintain a reference to the
         // original value and it becomes a copy.
-        $get_display_value = function ($original_value) use ($solr_field, &$solr_fields) {
+        $get_display_value = function ($original_value) use ($solr_field, &$solr_fields, $object) {
           $value = $original_value;
           $field_config = (is_array($solr_fields[$solr_field]) ? $solr_fields[$solr_field] : array()) + array(
             'hyperlink' => 0,
@@ -227,12 +242,13 @@ function islandora_solr_metadata_query_fields($object, &$solr_fields) {
           if (is_callable($field_config['formatter'])) {
             $value = call_user_func($field_config['formatter'], $value);
           }
+
           if ($field_config['hyperlink'] == 1 && trim($value)) {
             $use_value = $value;
             if ($link_options = drupal_array_get_nested_value($field_config, array('link_options'))) {
               if (isset($link_options['link_text']) && $link_options['link_text'] == 'otherfield') {
-                $target_object = islandora_object_load(str_replace('info:fedora/', '', $value));
-
+                $target_object = islandora_object_load(str_replace('info:fedora/', '', $value)); 
+	
                 $site = _get_site_from_config();
                 $target_sites_rel = $target_object->relationships->get(NULL, 'isMemberOfSite');
                 $target_sites = array();
@@ -242,7 +258,6 @@ function islandora_solr_metadata_query_fields($object, &$solr_fields) {
                   }
                 }
                 if ($site <> '' && array_search($site, $target_sites) === FALSE) {
-                  unset($solr_fields['RELS_EXT_isMemberOfCollection_uri_ms']);
                   return ;
                 }
 
