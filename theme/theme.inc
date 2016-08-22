@@ -248,20 +248,19 @@ function islandora_solr_metadata_query_fields($object, &$solr_fields) {
             if ($link_options = drupal_array_get_nested_value($field_config, array('link_options'))) {
               if (isset($link_options['link_text']) && $link_options['link_text'] == 'otherfield') {
                 $target_object = islandora_object_load(str_replace('info:fedora/', '', $value)); 
-	
-                $site = _get_site_from_config();
-                $target_sites_rel = $target_object->relationships->get(NULL, 'isMemberOfSite');
-                $target_sites = array();
-                foreach ($target_sites_rel as $tar) {
-                  if (isset($tar['object']['value'])) {
-                    $target_sites[] = 'info:fedora/' . $tar['object']['value'];
+                if (is_object($target_object)) {
+                  $site = _get_site_from_config();
+                  $target_sites_rel = $target_object->relationships->get(NULL, 'isMemberOfSite');
+                  $target_sites = array();
+                  foreach ($target_sites_rel as $tar) {
+                    if (isset($tar['object']['value'])) {
+                      $target_sites[] = 'info:fedora/' . $tar['object']['value'];
+                    }
                   }
-                }
-                if ($site <> '' && array_search($site, $target_sites) === FALSE) {
-                  return ;
-                }
+                  if ($site <> '' && array_search($site, $target_sites) === FALSE) {
+                    return ;
+                  }
 
-                if ($target_object) {
                   $use_target = 'islandora/object/' . $target_object->id;
                   $use_value = ($link_options['link_text_options']['link_text_text']) ?
                     _get_SOLR_field_value($target_object->id, $link_options['link_text_options']['link_text_text']) : $target_object->label;
