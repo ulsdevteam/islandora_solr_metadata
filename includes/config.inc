@@ -544,9 +544,30 @@ function islandora_solr_metadata_config_field_form($form, &$form_state, $config_
       '#type' => 'radios',
       '#title' => t('Link target'),
       '#options' => array('SOLR' => t('SOLR search'),
-                          'pathauto' => t('Link to URL alias that matches field\'s original value.')
+                          'islandora_url' => t('Link to /islandora/object/{PID} matching object value.'),
+                          'pathauto' => t('Custom path based on object tokens.')
       ),
       '#default_value' => $get_default(array('link_options', 'link_target'), 'SOLR'),
+    ),
+    'link_target_options' => array(
+      '#type' => 'fieldset',
+      '#title' => 'Custom path',
+      '#collapsible' => FALSE,
+      'link_target_pattern' => array(
+        '#type' => 'textfield',
+        '#title' => t('Path'),
+        '#description' => t('This value must contain "%1" for token replacement.  For example: ') . '<code>/group/department/%1</code>',
+        '#size' => 45,
+        '#default_value' => $get_default(array('link_options', 'link_target_options', 'link_target_pattern'), ''),
+      ),
+      'link_target_field' => array(
+        '#type' => 'textfield',
+        '#title' => t('Path'),
+        '#description' => t('Field used for the $1 token.  This value will be normalized and inserted where the %1 appears for the path pattern.'),
+        '#size' => 45,
+        '#autocomplete_path' => 'islandora_solr/autocomplete_luke',
+        '#default_value' => $get_default(array('link_options', 'link_target_options', 'link_target_field'), ''),
+      ),
     ),
   );
   // Add in truncation fields for metadata field.
