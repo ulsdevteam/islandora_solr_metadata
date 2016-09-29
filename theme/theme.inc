@@ -262,8 +262,8 @@ function islandora_solr_metadata_query_fields($object, &$solr_fields) {
                   }
                   $use_target = (isset($link_options['link_target']) && $link_options['link_target'] == 'pathauto') ? 
                     str_replace('%1', 
-                                str_replace("+", 
-                                            "-", 
+                                str_replace(array("+", "."), 
+                                            array("-", ""), 
                                             urlencode(strtolower(trim(_get_SOLR_field_value($target_object->id, $link_options['link_target_options']['link_target_field']))))), 
                                 $link_options['link_target_options']['link_target_pattern']) : 
                     'islandora/object/' . $target_object->id;
