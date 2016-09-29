@@ -229,6 +229,39 @@ function islandora_solr_metadata_query_fields($object, &$solr_fields) {
             $value = call_user_func($field_config['formatter'], $value);
           }
           if ($field_config['hyperlink'] == 1 && trim($value)) {
+            $use_value = $value;
+            if ($link_options = drupal_array_get_nested_value($field_config, array('link_options'))) {
+              if (isset($link_options['link_text']) && $link_options['link_text'] == 'otherfield') {
+                $target_object = islandora_object_load(str_replace('info:fedora/', '', $value)); 
+                if (is_object($target_object)) {
+                  $site = _get_site_from_config();
+                  $target_sites_rel = $target_object->relationships->get(NULL, 'isMemberOfSite');
+                  $target_sites = array();
+                  foreach ($target_sites_rel as $tar) {
+                    if (isset($tar['object']['value'])) {
+                      $target_sites[] = 'info:fedora/' . $tar['object']['value'];
+                    }
+                  }
+                  if ($site <> '' && array_search($site, $target_sites) === FALSE) {
+                    return ;
+                  }
+                  $use_target = (isset($link_options['link_target']) && $link_options['link_target'] == 'pathauto') ? 
+                    str_replace('%1', 
+                                str_replace(array("+", "."), 
+                                            array("-", ""), 
+                                            urlencode(strtolower(trim(_get_SOLR_field_value($target_object->id, $link_options['link_target_options']['link_target_field']))))), 
+                                $link_options['link_target_options']['link_target_pattern']) : 
+                    'islandora/object/' . $target_object->id;
+ 
+                  $use_value = ($link_options['link_text_options']['link_text_text']) ?
+                    _get_SOLR_field_value($target_object->id, $link_options['link_text_options']['link_text_text']) : $target_object->label;
+                }
+              }
+              if (isset($link_options['link_target']) && $link_options['link_target'] <> 'SOLR') {
+                // Based on the config, see what the target is.
+                return ($use_target) ? l($use_value, $use_target) : $use_value;
+              }
+            }
             if (variable_get('islandora_solr_metadata_omit_empty_values', FALSE) && !trim($value)) {
               // Avoid generating markup (throwing off the "empty" check).
               // Will get stripped out later.
