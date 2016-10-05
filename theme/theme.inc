@@ -349,15 +349,19 @@ function islandora_solr_metadata_query_fields($object, &$solr_fields) {
 function _get_site_from_config() {
   $base_filter = variable_get('islandora_solr_base_filter');
   // look for the value for RELS_EXT_isMemberOfSite_uri_ms 
-  $filters = explode("\r\n", $base_filter);
+  $final_filters = explode(" AND ", $base_filter);
+//  $final_filters = array();
+/*  foreach ($filters as $exploded) {
+    $final_filters = array_merge(explode("\r\n", $exploded);
+  } */
   $found_filter = '';
-  foreach ($filters as $filter) { 
+  foreach ($final_filters as $filter) { 
     if (strstr($filter, 'RELS_EXT_isMemberOfSite_uri_ms') <> '') {
       $found_filter = $filter;
     }  
   }
   if ($found_filter) { 
-    $site = str_replace(array('"', 'RELS_EXT_isMemberOfSite_uri_ms:'), '', $found_filter);
+    $site = stripslashes(str_replace(array('"', 'RELS_EXT_isMemberOfSite_uri_ms:'), '', $found_filter));
     return $site;
   }
 }
