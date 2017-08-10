@@ -254,7 +254,7 @@ function islandora_solr_metadata_config_form($form, &$form_state, $configuration
  */
 function islandora_solr_metadata_config_form_validate($form, $form_state) {
   if ($form_state['triggering_element']['#name'] == 'islandora-solr-metadata-add-field') {
-    module_load_include('inc', 'islandora_solr_search', 'includes/luke');
+    module_load_include('inc', 'islandora_solr', 'includes/luke');
     $solr_luke = islandora_solr_get_luke();
     $luke_fields = array_keys($solr_luke['fields']);
 
@@ -299,7 +299,7 @@ function islandora_solr_metadata_config_form_validate($form, $form_state) {
   if ($form_state['triggering_element']['#value'] == 'Save configuration') {
     $solr_field = $form_state['values']['islandora_solr_metadata_fields']['description_fieldset']['available_solr_fields'];
     if (!empty($solr_field)) {
-      module_load_include('inc', 'islandora_solr_search', 'includes/luke');
+      module_load_include('inc', 'islandora_solr', 'includes/luke');
       $solr_luke = islandora_solr_get_luke();
       $luke_fields = array_keys($solr_luke['fields']);
       if (!in_array($solr_field, $luke_fields)) {
@@ -512,6 +512,58 @@ function islandora_solr_metadata_config_field_form($form, &$form_state, $config_
     '#description' => t('Should each value for this field be linked to a search to find objects with the value in this field?'),
     '#default_value' => $get_default('hyperlink', FALSE),
   );
+
+  $set['link_options'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Link options'),
+    '#collapsed' => TRUE,
+    '#collapsible' => TRUE,
+    'link_text' => array(
+      '#type' => 'radios',
+      '#title' => 'Link Text',
+      '#options' => array(
+        'default' => t('Default field value'),
+        'otherfield' => t('Display alternate field value')
+      ),
+      '#default_value' => $get_default(array('link_options', 'link_text'), 'default'),
+    ),
+    'link_text_options' => array(
+      '#type' => 'fieldset',
+      '#title' => 'Alternate field value',
+      '#collapsible' => FALSE,
+      'link_text_text' => array(
+        '#type' => 'textfield',
+        '#title' => t('Alternate field value'),
+        '#description' => t('Value from which field to use for link text.'),
+        '#size' => 45,
+        '#autocomplete_path' => 'islandora_solr/autocomplete_luke',
+        '#default_value' => $get_default(array('link_options', 'link_text_options', 'link_text_text'), ''),
+      ),
+    ),
+    'link_target' => array(
+      '#type' => 'radios',
+      '#title' => t('Link target'),
+      '#options' => array('SOLR' => t('SOLR search'),
+                          'islandora_url' => t('Link to /islandora/object/{PID} matching object value.'),
+                          'pathauto' => t('Custom url pattern based on object PID.')
+      ),
+      '#default_value' => $get_default(array('link_options', 'link_target'), 'SOLR'),
+    ),
+    'link_target_options' => array(
+      '#type' => 'fieldset',
+      '#title' => 'Pathauto `source` pattern',
+      '#collapsible' => FALSE,
+      'link_pathauto_source_pattern' => array(
+        '#type' => 'textfield',
+        '#description' => t('The `source` pattern to use for an object.  This could be a nonstandard menu route ' .
+          'such as <code>islandora/search_collection/{PID}</code>. Finally, <code>islandora/search_collection/[PID]</code> ' . 
+          'would be supplied as <code>islandora/search_collection/</code> - it is optional to provide the [PID] in the ' .
+          'pattern, if not provided the object\'s PID value will be added at the end.'),
+        '#size' => 45,
+        '#default_value' => $get_default(array('link_options', 'link_target_options', 'link_pathauto_source_pattern'), 'islandora/search_collection/'),
+      ),
+    ),
+  );
   // Add in truncation fields for metadata field.
   $truncation_config = array(
     'default_values' => array(
@@ -624,3 +676,4 @@ function islandora_solr_metadata_add_truncation_to_form(&$form, $field_config) {
     ),
   );
 }
+
