@@ -545,7 +545,7 @@ function islandora_solr_metadata_config_field_form($form, &$form_state, $config_
       '#title' => t('Link target'),
       '#options' => array('SOLR' => t('SOLR search'),
                           'islandora_url' => t('Link to /islandora/object/{PID} matching object value.'),
-                          'pathauto' => t('Custom pathauto alias based on object PID.')
+                          'pathauto' => t('Custom url pattern based on object PID.')
       ),
       '#default_value' => $get_default(array('link_options', 'link_target'), 'SOLR'),
     ),
@@ -555,10 +555,10 @@ function islandora_solr_metadata_config_field_form($form, &$form_state, $config_
       '#collapsible' => FALSE,
       'link_pathauto_source_pattern' => array(
         '#type' => 'textfield',
-        '#description' => t('The `source` pattern for any pathauto record based on an object.  This could be ' .
-          'a nonstandard menu route such as <code>islandora/search_collection/{PID}</code>. ' . 
-          'Finally, <code>islandora/search_collection/{PID}</code> would be supplied as <code>islandora/search_collection/</code>' .
-          ' - do not include the {PID} value part.'),
+        '#description' => t('The `source` pattern to use for an object.  This could be a nonstandard menu route ' .
+          'such as <code>islandora/search_collection/{PID}</code>. Finally, <code>islandora/search_collection/[PID]</code> ' . 
+          'would be supplied as <code>islandora/search_collection/</code> - it is optional to provide the [PID] in the ' .
+          'pattern, if not provided the object\'s PID value will be added at the end.'),
         '#size' => 45,
         '#default_value' => $get_default(array('link_options', 'link_target_options', 'link_pathauto_source_pattern'), 'islandora/search_collection/'),
       ),

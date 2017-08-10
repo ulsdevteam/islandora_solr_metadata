@@ -263,9 +263,18 @@ function islandora_solr_metadata_query_fields($object, &$solr_fields) {
                   $use_target = '';
                   if (isset($link_options['link_target']) && $link_options['link_target'] == 'pathauto') {
                     module_load_include('inc', 'path');
+                    $alias = (strstr($link_options['link_target_options']['link_pathauto_source_pattern'], '[PID]')) ?
+                      path_load(str_replace('[PID]', $target_object->id, $link_options['link_target_options']['link_pathauto_source_pattern'])) :
+                      path_load($link_options['link_target_options']['link_pathauto_source_pattern'] . $target_object->id);
+                    
                     $alias = path_load($link_options['link_target_options']['link_pathauto_source_pattern'] . $target_object->id);
                     if ($alias) {
                       $use_target = $alias['alias'];
+                    }
+                    else {
+                      $use_target = (strstr($link_options['link_target_options']['link_pathauto_source_pattern'], '[PID]')) ?
+                        str_replace('[PID]', $target_object->id, $link_options['link_target_options']['link_pathauto_source_pattern']) :
+                        $link_options['link_target_options']['link_pathauto_source_pattern'] . $target_object->id;
                     }
                   }
                   if (!$use_target) {
