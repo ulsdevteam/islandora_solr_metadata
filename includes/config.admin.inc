@@ -30,6 +30,7 @@ function islandora_solr_metadata_admin_form($form, &$form_state) {
       $association['machine_name'],
     );
   }
+
   $form['table'] = array(
     '#title' => t('Solr metadata associations'),
     '#markup' => theme('table', array(
@@ -102,5 +103,6 @@ function islandora_solr_metadata_admin_form_validate($form, $form_state) {
 function islandora_solr_metadata_admin_form_submit($form, $form_state) {
   module_load_include('inc', 'islandora_solr_metadata', 'includes/db');
   islandora_solr_metadata_add_configuration($form_state['values']['configuration_name'], $form_state['values']['machine_name']);
+  variable_set('islandora_solr_metadata_add_html_metatag', $form_state['values']['add_html_metatag']);
   drupal_set_message(t('A new empty configuration has been created for @config_name', array('@config_name' => $form_state['values']['configuration_name'])));
 }

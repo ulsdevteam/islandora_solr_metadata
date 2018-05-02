@@ -12,6 +12,12 @@ function islandora_solr_metadata_general_admin_form($form, &$form_state) {
   form_load_include($form_state, 'inc', 'islandora_solr_metadata', 'includes/general.admin');
 
   $form += array(
+    'islandora_solr_metadata_add_html_metatag' => array(
+      '#type' => 'checkbox',
+      '#title' => 'Add HTML metatag',
+      '#default_value' => variable_get('islandora_solr_metadata_add_html_metatag', 0),
+      '#description' => 'When enabled, will add a relevant <meta name="description"...> tag to the HTML for all Islandora Objects.',
+    ),
     'islandora_solr_metadata_omit_empty_values' => array(
       '#type' => 'checkbox',
       '#title' => t('Omit Empty Values'),
@@ -41,6 +47,7 @@ function islandora_solr_metadata_general_admin_form($form, &$form_state) {
  */
 function islandora_solr_metadata_general_admin_form_submit(&$form, &$form_state) {
   $variables = array(
+    'islandora_solr_metadata_add_html_metatag',
     'islandora_solr_metadata_omit_empty_values',
     'islandora_solr_metadata_dedup_values',
   );
