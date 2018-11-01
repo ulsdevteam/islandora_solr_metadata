@@ -270,7 +270,7 @@ function islandora_solr_metadata_preprocess_html(&$vars) {
   $islandora_object = menu_get_object('islandora_object', 2);
   if ($islandora_object && variable_get('islandora_solr_metadata_add_html_metatag', 0)) {
     module_load_include('inc', 'islandora_solr_metadata', 'includes/utilities');
-    $object_description = islandora_solr_metadata_solr_value($islandora_object, 'mods_abstract_s');
+    $object_description = islandora_solr_metadata_solr_value($islandora_object, 'dc.description'); // mods_abstract_ms');
     $stripped_tags = strip_tags($object_description);
     if ($stripped_tags) {
       $description = array(
