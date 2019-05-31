@@ -74,7 +74,6 @@ function template_preprocess_islandora_solr_metadata_display(array &$variables) 
     );
   }
   $separator = variable_get('islandora_solr_metadata_field_value_separator', "\n");
-
   if (empty($separator)) {
     $separator = "\n";
   }
@@ -87,6 +86,7 @@ function template_preprocess_islandora_solr_metadata_display(array &$variables) 
  */
 function template_process_islandora_solr_metadata_display(array &$variables) {
   $variables['found'] = islandora_solr_metadata_query_fields($variables['islandora_object'], $variables['solr_fields']);
+
   $variables['not_found_message'] = t('Document not present in Solr while generating the metadata display for @id. Try !reloading the page, or contact an administrator if this issue persists.', array(
     '@id' => $variables['islandora_object']->id,
     '!reloading' => '<a href="" onclick="window.location.reload(true)">' . t('reloading') . '</a>',
@@ -210,7 +210,6 @@ function islandora_solr_metadata_query_fields($object, &$solr_fields) {
     $query_processor->executeQuery(FALSE);
     if ($query_processor->islandoraSolrResult['response']['numFound'] > 0) {
       $solr_results_doc = $query_processor->islandoraSolrResult['response']['objects']['0']['solr_doc'];
-
       // Ensure we only provide results for what is specified.
       $constrained_results = array_intersect_key($solr_results_doc, $solr_fields);
 
@@ -271,6 +270,21 @@ function islandora_solr_metadata_query_fields($object, &$solr_fields) {
             $value = call_user_func($field_config['formatter'], $value);
           }
           if ($field_config['hyperlink'] == 1 && trim($value)) {
+            $use_value = $value;
+            if ($link_options = drupal_array_get_nested_value($field_config, array('link_options'))) {
+              if (isset($link_options['link_text']) && $link_options['link_text'] == 'otherfield') {
+                $target_object = islandora_object_load(str_replace('info:fedora/', '', $value));
+                if ($target_object) {
+                  $use_target = 'islandora/object/' . $target_object->id;
+                  $use_value = ($link_options['link_text_options']['link_text_text']) ?
+                    _get_SOLR_field_value($target_object->id, $link_options['link_text_options']['link_text_text']) : $target_object->label;
+                }
+              }
+              if (isset($link_options['link_target']) && $link_options['link_target'] <> 'SOLR') {
+                // Based on the config, see what the target is.
+                return ($use_target) ? l($use_value, $use_target) : $use_value;
+              }
+            }
             if (variable_get('islandora_solr_metadata_omit_empty_values', FALSE) && !trim($value)) {
               // Avoid generating markup (throwing off the "empty" check).
               // Will get stripped out later.
@@ -280,7 +294,7 @@ function islandora_solr_metadata_query_fields($object, &$solr_fields) {
               '!field' => $solr_field,
               '!value' => islandora_solr_facet_escape($original_value),
             ));
-            return l($value, 'islandora/search', array(
+            return l($use_value, 'islandora/search', array(
               "query" => array(
                 "type" => "dismax",
                 "f" => array(
@@ -345,3 +359,21 @@ function islandora_solr_metadata_query_fields($object, &$solr_fields) {
     }
   }
 }
+
+/**
+ * Helper function to get a SOLR value for a given PID.
+ */
+function _get_SOLR_field_value($pid, $field) {
+  $query_processor = new IslandoraSolrQueryProcessor();
+  $query_processor->solrQuery = 'PID:"' . $pid . '"';
+  $query_processor->solrParams['fl'] = $field;
+  $query_processor->executeQuery(FALSE);
+  if ($query_processor->islandoraSolrResult['response']['numFound'] > 0) {
+    $solr_results_doc = $query_processor->islandoraSolrResult['response']['objects']['0']['solr_doc'];
+    return (!is_array($solr_results_doc[$field])) ? $solr_results_doc[$field] : $solr_results_doc[$field][0];
+  }
+  else {
+    return false;
+  }
+}
+
