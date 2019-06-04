@@ -291,7 +291,7 @@ function islandora_solr_metadata_query_fields($object, &$solr_fields) {
             if ($link_options = drupal_array_get_nested_value($field_config, array('link_options'))) {
               $use_value = $value;
               if (isset($link_options['link_text']) && $link_options['link_text'] == 'otherfield') {
-                $target_object = islandora_object_load(str_replace('info:fedora/', '', $value)); 
+                $target_object = islandora_object_load(str_replace('info:fedora/', '', $value));
                 if (is_object($target_object)) {
                   $site = _get_site_from_config();
                   $target_sites_rel = $target_object->relationships->get(NULL, 'isMemberOfSite');
@@ -304,14 +304,14 @@ function islandora_solr_metadata_query_fields($object, &$solr_fields) {
                   if ($site <> '' && array_search($site, $target_sites) === FALSE) {
                     return ;
                   }
-                  $use_target = (isset($link_options['link_target']) && $link_options['link_target'] == 'pathauto') ? 
-                    str_replace('%1', 
-                                str_replace("+", 
-                                            "-", 
-                                            urlencode(strtolower(trim(_get_SOLR_field_value($target_object->id, $link_options['link_target_options']['link_target_field']))))), 
-                                $link_options['link_target_options']['link_target_pattern']) : 
+                  $use_target = (isset($link_options['link_target']) && $link_options['link_target'] == 'pathauto') ?
+                    str_replace('%1',
+                                str_replace("+",
+                                            "-",
+                                            urlencode(strtolower(trim(_get_SOLR_field_value($target_object->id, $link_options['link_target_options']['link_target_field']))))),
+                                $link_options['link_target_options']['link_target_pattern']) :
                     'islandora/object/' . $target_object->id;
- 
+
                   $use_value = ($link_options['link_text_options']['link_text_text']) ?
                     _get_SOLR_field_value($target_object->id, $link_options['link_text_options']['link_text_text']) : $target_object->label;
                 }
@@ -417,41 +417,22 @@ function islandora_solr_metadata_query_fields($object, &$solr_fields) {
 }
 
 
-/** 
+/**
  * Helper function to derive the site value from the islandora_solr_base_filter value.  Does not handle more than
  * one site value in the base filter.
  */
 function _get_site_from_config() {
   $base_filter = variable_get('islandora_solr_base_filter');
-  // look for the value for RELS_EXT_isMemberOfSite_uri_ms 
+  // look for the value for RELS_EXT_isMemberOfSite_uri_ms
   $filters = explode("\r\n", $base_filter);
   $found_filter = '';
-  foreach ($filters as $filter) { 
+  foreach ($filters as $filter) {
     if (strstr($filter, 'RELS_EXT_isMemberOfSite_uri_ms') <> '') {
       $found_filter = $filter;
-    }  
+    }
   }
-  if ($found_filter) { 
+  if ($found_filter) {
     $site = str_replace(array('"', 'RELS_EXT_isMemberOfSite_uri_ms:'), '', $found_filter);
     return $site;
   }
 }
-
-
-/**
- * Helper function to get a SOLR value for a given PID.
- */
-function _get_SOLR_field_value($pid, $field) {
-  $query_processor = new IslandoraSolrQueryProcessor();
-  $query_processor->solrQuery = 'PID:"' . $pid . '"';
-  $query_processor->solrParams['fl'] = $field;
-  $query_processor->executeQuery(FALSE);
-  if ($query_processor->islandoraSolrResult['response']['numFound'] > 0) {
-    $solr_results_doc = $query_processor->islandoraSolrResult['response']['objects']['0']['solr_doc'];
-    return (!is_array($solr_results_doc[$field])) ? $solr_results_doc[$field] : $solr_results_doc[$field][0];
-  }
-  else {
-    return false;
-  }
-}
-
