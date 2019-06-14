@@ -302,13 +302,27 @@ function islandora_solr_metadata_query_fields($object, &$solr_fields) {
                   if ($site <> '' && array_search($site, $target_sites) === FALSE) {
                     return ;
                   }
-                  $use_target = (isset($link_options['link_target']) && $link_options['link_target'] == 'pathauto') ? 
-                    str_replace('%1', 
-                                str_replace(array("+", "."), 
-                                            array("-", ""), 
-                                            urlencode(strtolower(trim(_get_SOLR_field_value($target_object->id, $link_options['link_target_options']['link_target_field']))))), 
-                                $link_options['link_target_options']['link_target_pattern']) : 
-                    'islandora/object/' . $target_object->id;
+                  $use_target = '';
+                  if (isset($link_options['link_target']) && $link_options['link_target'] == 'pathauto') {
+                    module_load_include('inc', 'path');
+                    $alias = (strstr($link_options['link_target_options']['link_pathauto_source_pattern'], '[PID]')) ?
+                      path_load(str_replace('[PID]', $target_object->id, $link_options['link_target_options']['link_pathauto_source_pattern'])) :
+                      path_load($link_options['link_target_options']['link_pathauto_source_pattern'] . $target_object->id);
+                    
+                    $alias = path_load($link_options['link_target_options']['link_pathauto_source_pattern'] . $target_object->id);
+                    if ($alias) {
+                      $use_target = $alias['alias'];
+                    }
+                    else {
+                      $use_target = (strstr($link_options['link_target_options']['link_pathauto_source_pattern'], '[PID]')) ?
+                        str_replace('[PID]', $target_object->id, $link_options['link_target_options']['link_pathauto_source_pattern']) :
+                        $link_options['link_target_options']['link_pathauto_source_pattern'] . $target_object->id;
+                    }
+                  }
+                  if (!$use_target) {
+                    $use_target= 'islandora/object/' . $target_object->id;
+                  }
+
                   $use_value = ($link_options['link_text_options']['link_text_text']) ?
                     _get_SOLR_field_value($target_object->id, $link_options['link_text_options']['link_text_text']) : $target_object->label;
                 }
@@ -433,33 +447,16 @@ function _get_site_from_config() {
     }
   }
   $found_filter = '';
-  foreach ($final_filters as $filter) { 
+  foreach ($final_filters as $filter) {
     if (strstr($filter, 'RELS_EXT_isMemberOfSite_uri_ms') <> '') {
       $found_filter = $filter;
-    }  
+    }
   }
-  if ($found_filter) { 
+  if ($found_filter) {
     $site = stripslashes(str_replace(array('"', 'RELS_EXT_isMemberOfSite_uri_ms:'), '', $found_filter));
     return $site;
   }
 }
 
-
-/**
- * Helper function to get a SOLR value for a given PID.
- */
-function _get_SOLR_field_value($pid, $field) {
-  $query_processor = new IslandoraSolrQueryProcessor();
-  $query_processor->solrQuery = 'PID:"' . $pid . '"';
-  $query_processor->solrParams['fl'] = $field;
-  $query_processor->executeQuery(FALSE);
-  if ($query_processor->islandoraSolrResult['response']['numFound'] > 0) {
-    $solr_results_doc = $query_processor->islandoraSolrResult['response']['objects']['0']['solr_doc'];
-    return (!is_array($solr_results_doc[$field])) ? $solr_results_doc[$field] : $solr_results_doc[$field][0];
-  }
-  else {
-    return false;
-  }
-}
 
 
