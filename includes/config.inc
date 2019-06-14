@@ -34,6 +34,7 @@ function islandora_solr_metadata_config_form($form, &$form_state, $configuration
       $form_state['field_data'][$field_name] = array(
         'configuration_id' => $configuration_id,
         'solr_field' => $field_name,
+        'display_label' => $field_name,
         // Arbitrary large sort weight so it always comes last.
         'weight' => 10000,
         'ajax-volatile' => TRUE,
@@ -428,9 +429,9 @@ function islandora_solr_metadata_management($data) {
 
   if ($data) {
     uasort($data, 'drupal_sort_weight');
-    $delta = count($data);
-    $weight = 1;
-    $map = function ($field) use ($delta, &$weight) {
+    $max_delta = max(count($data), 10);
+    $weight = 0;
+    $map = function ($field) use ($max_delta, &$weight) {
       $value = $weight;
       $weight++;
       return array(
@@ -439,6 +440,7 @@ function islandora_solr_metadata_management($data) {
           '#default_value' => isset($field['remove']) ? $field['remove'] : FALSE,
         ),
         'solr_field_markup' => array('#markup' => filter_xss($field['solr_field'])),
+        'label' => array('#markup' => empty($field['display_label']) ? filter_xss($field['solr_field']) : filter_xss($field['display_label'])),
         'operations' => array(
           'edit' => array(
             '#access' => isset($field['ajax-volatile']) ? !$field['ajax-volatile'] : TRUE,
@@ -452,7 +454,8 @@ function islandora_solr_metadata_management($data) {
           ),
         ),
         'weight' => array(
-          '#type' => 'hidden',
+          '#type' => 'weight',
+          '#delta' => $max_delta,
           '#default_value' => $weight,
         ),
       );
@@ -466,8 +469,9 @@ function islandora_solr_metadata_management($data) {
     '#header' => array(
       t('Remove'),
       t('Solr Field'),
+      t('Label'),
       t('Operations'),
-      '',
+      t('Weight'),
     ),
     'rows' => $rows,
     '#theme' => 'islandora_solr_metadata_management_table',
@@ -562,8 +566,60 @@ function islandora_solr_metadata_config_field_form($form, &$form_state, $config_
         '#size' => 45,
         '#default_value' => $get_default(array('link_options', 'link_target_options', 'link_pathauto_source_pattern'), 'islandora/search_collection/'),
       ),
+      '#title' => 'Custom path',
+      '#collapsible' => FALSE,
+      'link_target_pattern' => array(
+        '#type' => 'textfield',
+        '#title' => t('Path'),
+        '#description' => t('This value must contain "%1" for token replacement.  For example: ') . '<code>/group/department/%1</code>',
+        '#size' => 45,
+        '#default_value' => $get_default(array('link_options', 'link_target_options', 'link_target_pattern'), ''),
+      ),
+      'link_target_field' => array(
+        '#type' => 'textfield',
+        '#title' => t('Path'),
+        '#description' => t('Field used for the $1 token.  This value will be normalized and inserted where the %1 appears for the path pattern.'),
+        '#size' => 45,
+        '#autocomplete_path' => 'islandora_solr/autocomplete_luke',
+        '#default_value' => $get_default(array('link_options', 'link_target_options', 'link_target_field'), ''),
+      ),
+    ),
+    'link_target_options' => array(
+      '#type' => 'fieldset',
+      '#title' => 'Custom path',
+      '#collapsible' => FALSE,
+      'link_target_pattern' => array(
+        '#type' => 'textfield',
+        '#title' => t('Path'),
+        '#description' => t('This value must contain "%1" for token replacement.  For example: ') . '<code>/group/department/%1</code>',
+        '#size' => 45,
+        '#default_value' => $get_default(array('link_options', 'link_target_options', 'link_target_pattern'), ''),
+      ),
+      'link_target_field' => array(
+        '#type' => 'textfield',
+        '#title' => t('Replace %1 token with'),
+        '#description' => t('Field used for the $1 token.  This value will be normalized and inserted where the %1 appears for the path pattern.'),
+        '#size' => 45,
+        '#autocomplete_path' => 'islandora_solr/autocomplete_luke',
+        '#default_value' => $get_default(array('link_options', 'link_target_options', 'link_target_field'), ''),
+      ),
     ),
   );
+  $set['uri_replacement'] = array(
+    '#type' => 'textfield',
+    '#title' => t('URI/PID Replacement Field'),
+    '#description' => t('If the value of this field represents a Fedora URI or PID, a Solr field can be specified to replace that value, e.g., with the object label instead of the full URI.'),
+    '#default_value' => $get_default('uri_replacement', ''),
+    '#autocomplete_path' => 'islandora_solr/autocomplete_luke',
+  );
+  if (islandora_solr_is_date_field($field_name)) {
+    $set['date_format'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Date format'),
+      '#default_value' => $get_default('date_format', ''),
+      '#description' => t('The format of the date, as it will be displayed in the search results. Use <a href="!url" target="_blank">PHP date()</a> formatting. Works best when the date format matches the granularity of the source data. Otherwise it is possible that there will be duplicates displayed.', array('!url' => 'http://php.net/manual/function.date.php')),
+    );
+  }
   // Add in truncation fields for metadata field.
   $truncation_config = array(
     'default_values' => array(
@@ -576,12 +632,89 @@ function islandora_solr_metadata_config_field_form($form, &$form_state, $config_
     'min_wordsafe_length_input_path' => "wrapper[truncation][word_safe]",
   );
   islandora_solr_metadata_add_truncation_to_form($set, $truncation_config);
+  $permissions = $get_default(
+    array('permissions'),
+    array(
+      'enable_permissions' => FALSE,
+      'permissions' => array(),
+    )
+  );
+  islandora_solr_metadata_append_permissions_and_actions($permissions, $set);
 
   $form['submit'] = array(
     '#type' => 'submit',
     '#value' => t('Save field configuration'),
   );
   return $form;
+}
+
+/**
+ * Generate the element definition for the permission fieldset.
+ *
+ * @param array $permissions
+ *   The selected permissions array containing
+ *   key values:
+ *     'enable_permissions' => bool (enable/disable permissions),
+ *     'permissions' => array (an array of permissions to apply)
+ * @param array $permissions_default
+ *   The permissions to select by default.
+ * @param array $permissions_disable
+ *   Some permissions which we will not allow to be changed (set as disabled in
+ *   the form).
+ *
+ * @return array
+ *   An associative array containing the definition for the permissions
+ *   fieldset.
+ */
+function islandora_solr_metadata_get_admin_permissions_fieldset($permissions, $permissions_default, $permissions_disable) {
+  $permissions_fieldset = array(
+    '#type' => 'fieldset',
+    '#title' => t('Permissions'),
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
+    'enable_permissions' => array(
+      '#type' => 'checkbox',
+      '#title' => t('Enable permissions'),
+      '#default_value' => $permissions['enable_permissions'],
+    ),
+    'permissions' => array(
+      '#type' => 'checkboxes',
+      '#title' => t('Permissions'),
+      '#options' => user_roles(),
+      '#default_value' => !empty($permissions['permissions']) ? $permissions['permissions'] : $permissions_default,
+      '#description' => t('Select which roles can access this field.<br /><strong>Note:</strong> checkboxes may be grayed out for roles which do not have permission to search the Solr index.'),
+      '#states' => array(
+        'visible' => array(
+          ':input[name="wrapper[permissions][enable_permissions]"]' => array('checked' => TRUE),
+        ),
+      ),
+    ),
+  );
+  foreach ($permissions_disable as $rid) {
+    $permissions_fieldset['permissions'][$rid] = array(
+      '#disabled' => TRUE,
+    );
+  }
+
+  return $permissions_fieldset;
+}
+
+/**
+ * Utility function to append permissions and actions to the modal.
+ *
+ * @param array $permissions
+ *   The selected permissions array containing
+ *   key values:
+ *     'enable_permissions' => bool (enable/disable permissions),
+ *     'permissions' => array (an array of permissions to apply)
+ * @param array $form
+ *   An array representing the Drupal form, passed by reference.
+ */
+function islandora_solr_metadata_append_permissions_and_actions($permissions, &$form) {
+  module_load_include('inc', 'islandora_solr', 'includes/admin');
+  $permissions_disable = _islandora_solr_permissions_disable();
+  $permissions_default = _islandora_solr_permissions_default();
+  $form['permissions'] = islandora_solr_metadata_get_admin_permissions_fieldset($permissions, $permissions_default, $permissions_disable);
 }
 
 /**
@@ -611,7 +744,6 @@ function islandora_solr_metadata_config_field_form_submit(&$form, &$form_state) 
     "admin/islandora/search/islandora_solr_metadata/config/$config_id",
   );
 }
-
 
 /**
  * Generates the truncation field settings section to attach to a form.
