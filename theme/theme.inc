@@ -102,7 +102,6 @@ function template_process_islandora_solr_metadata_display(array &$variables) {
       }
     }
   }
-
   $variables['not_found_message'] = t('Document not present in Solr while generating the metadata display for @id. Try !reloading the page, or contact an administrator if this issue persists.', array(
     '@id' => $variables['islandora_object']->id,
     '!reloading' => '<a href="" onclick="window.location.reload(true)">' . t('reloading') . '</a>',
@@ -413,23 +412,54 @@ function islandora_solr_metadata_query_fields($object, &$solr_fields) {
   }
 }
 
-
-/**
+/** 
  * Helper function to derive the site value from the islandora_solr_base_filter value.  Does not handle more than
  * one site value in the base filter.
  */
 function _get_site_from_config() {
   $base_filter = variable_get('islandora_solr_base_filter');
-  // look for the value for RELS_EXT_isMemberOfSite_uri_ms
-  $filters = explode("\r\n", $base_filter);
-  $found_filter = '';
-  foreach ($filters as $filter) {
-    if (strstr($filter, 'RELS_EXT_isMemberOfSite_uri_ms') <> '') {
-      $found_filter = $filter;
+  // look for the value for RELS_EXT_isMemberOfSite_uri_ms 
+  $and_filters = explode(" AND ", $base_filter);
+  $final_filters = array();
+  foreach ($and_filters as $exploded) {
+    $nl_exploded = explode("\r\n", $exploded);
+    if (is_array($nl_exploded)) {
+      foreach ($nl_exploded as $nl_element) {
+        $final_filters[] = trim($nl_element);
+      }
+    }
+    else {
+      $final_filters[] = $nl_exploded;
     }
   }
-  if ($found_filter) {
-    $site = str_replace(array('"', 'RELS_EXT_isMemberOfSite_uri_ms:'), '', $found_filter);
+  $found_filter = '';
+  foreach ($final_filters as $filter) { 
+    if (strstr($filter, 'RELS_EXT_isMemberOfSite_uri_ms') <> '') {
+      $found_filter = $filter;
+    }  
+  }
+  if ($found_filter) { 
+    $site = stripslashes(str_replace(array('"', 'RELS_EXT_isMemberOfSite_uri_ms:'), '', $found_filter));
     return $site;
   }
 }
+
+
+/**
+ * Helper function to get a SOLR value for a given PID.
+ */
+function _get_SOLR_field_value($pid, $field) {
+  $query_processor = new IslandoraSolrQueryProcessor();
+  $query_processor->solrQuery = 'PID:"' . $pid . '"';
+  $query_processor->solrParams['fl'] = $field;
+  $query_processor->executeQuery(FALSE);
+  if ($query_processor->islandoraSolrResult['response']['numFound'] > 0) {
+    $solr_results_doc = $query_processor->islandoraSolrResult['response']['objects']['0']['solr_doc'];
+    return (!is_array($solr_results_doc[$field])) ? $solr_results_doc[$field] : $solr_results_doc[$field][0];
+  }
+  else {
+    return false;
+  }
+}
+
+
