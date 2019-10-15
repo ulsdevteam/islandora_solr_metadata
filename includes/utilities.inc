@@ -26,7 +26,7 @@ function islandora_solr_metadata_solr_value($object, $solr_field) {
     if ($query_processor->islandoraSolrResult['response']['numFound'] > 0) {
       $solr_results_doc = $query_processor->islandoraSolrResult['response']['objects']['0']['solr_doc'];
       // Ensure we only provide results for what is specified.
-      $ret_val = implode(", ", (array)$solr_results_doc[$solr_field]);
+      $ret_val = (array_key_exists($solr_field, $solr_results_doc) ? implode(", ", (array)$solr_results_doc[$solr_field]) : '');
     }
   }
   return $ret_val;
